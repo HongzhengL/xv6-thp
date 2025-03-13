@@ -1,0 +1,16 @@
+BasedOnStyle: Google
+
+IndentWidth:     4
+UseTab:          Never
+
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SortIncludes: false
+InsertNewlineAtEOF: true
+
+ColumnLimit: 80
+...
