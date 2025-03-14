@@ -96,7 +96,7 @@ In either case, if there is some free memory available in the corresponding pool
 **Like with vmalloc, please update malloc to maintain two separate data structures when adding THP support: a pool strictly comprising of huge page data, and another for base page data.**
 
 #### Adding a system call to control THP
-Add a new system call, setthp(int). It will take an integer value as input; when this value is 0, THP is disabled, else it is enabled.
+Add a new system call, setthp(int). It will take an integer value as input; when this value is 0, THP is disabled, else it is enabled. THP should be disabled on boot.
 
 You will also want to add a system call to read the current value of the THP variable to help make policy decisions in user space, i.e. in umalloc.
 
