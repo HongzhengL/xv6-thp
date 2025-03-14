@@ -1,0 +1,39 @@
+version: 38
+jobs:
+- name: Run Test
+  steps:
+  - !CheckoutStep
+    name: Checkout
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: Build & Test
+    runInContainer: true
+    image: git.hongzhengli.com/cs537-intro-os/cs537
+    interpreter: !ShellInterpreter
+      shell: bash
+      commands: |
+        make -C solution
+        cd tests
+        ./run-tests.sh
+    useTTY: true
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
+- name: Push to GitHub
+  steps:
+  - !PushRepository
+    name: GitHub_Push
+    remoteUrl: https://github.com/HongzhengL/xv6-thp.git
+    userName: HongzhengL
+    passwordSecret: GitHubAccessToken
+    force: false
+    condition: ALWAYS
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
