@@ -20,6 +20,8 @@ jobs:
         ./run-tests.sh
     useTTY: true
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  triggers:
+  - !BranchUpdateTrigger {}
   retryCondition: never
   maxRetries: 3
   retryDelay: 30
@@ -33,6 +35,8 @@ jobs:
     passwordSecret: GitHubAccessToken
     force: false
     condition: ALWAYS
+  triggers:
+  - !BranchUpdateTrigger {}
   retryCondition: never
   maxRetries: 3
   retryDelay: 30
