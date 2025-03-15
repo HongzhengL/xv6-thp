@@ -11,7 +11,7 @@ You may work work with a partner for this project, and they do not need to be re
 This project is due on March 20, 2025 at 11:59 PM.
 
 The work of this assignment is to:
-* Allow users to manually allocate 4MB pages by implementing a user space allocator, vmalloc, based on umalloc code
+* Allow users to manually allocate 4MB pages by implementing a user space allocator, vmalloc, based on umalloc code, and a corresponding function, vfree
 * Modify the memory management subsystem in xv6 to transparently use 4 MB huge pages
 * Add a system call, setthp to configure transparent huge page management
 
@@ -55,7 +55,7 @@ Follow a similar API to kalloc and kfree for two reasons:
 Once you have implemented the allocator and are confident in its functionality, it is time to integrate it into xv6. Do not forget to add initialization code similar to kinit and to guard operations in kalloc and kfree with locks.
 
 Your ultimate goal is to add a user function, vmalloc, which allows users to explicitly allocate n bytes from either the base or the huge page heap.
-You may base vmalloc of malloc, as defined in umalloc.c. vmalloc will accept two parameters - n, the number of bytes you want to allocate, and flag which will be passed a flag to determine whether we want to allocate memory using huge pages or base pages if memory needs to be allocated.
+You may base vmalloc of malloc, as defined in umalloc.c. vmalloc will accept two parameters - n, the number of bytes you want to allocate, and flag which will be passed a flag to determine whether we want to allocate memory using huge pages or base pages if memory needs to be allocated. **Also make sure to define vfree, a function like free for vmalloc.**
 
 The flags can take two values, VMALLOC\_SIZE\_BASE and VMALLOC\_SIZE\_HUGE, which need to be defined in user.h. vmalloc will return a pointer to a virtual memory address where n bytes are available for use.
 
