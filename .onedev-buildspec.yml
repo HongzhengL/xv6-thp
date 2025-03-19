@@ -23,9 +23,9 @@ jobs:
   triggers:
   - !BranchUpdateTrigger {}
   retryCondition: never
-  maxRetries: 3
+  maxRetries: 1
   retryDelay: 30
-  timeout: 14400
+  timeout: 180
 - name: Push to GitHub
   steps:
   - !PushRepository
