@@ -29,4 +29,5 @@ int main() {
   if(setthp(0) == -1) {
     printf(1,"XV6_TEST_ERROR Error, setthp returned -1\n");
   }
+  exit();
 }
