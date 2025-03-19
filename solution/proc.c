@@ -15,6 +15,7 @@ struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+int thp_enabled = 0;
 extern void forkret(void);
 extern void trapret(void);
 
@@ -472,3 +473,10 @@ void procdump(void) {
         cprintf("\n");
     }
 }
+
+int setthp(int val) {
+    thp_enabled = val;
+    return 0;
+}
+
+int checkthp() { return thp_enabled; }

@@ -106,3 +106,16 @@ int sys_procpgdirinfo() {
     buf[1] = huge_cnt;  // huge page count
     return 0;
 }
+
+int sys_setthp() {
+    int val;
+    if (argint(0, &val) < 0) {
+        return -1;
+    }
+    if (val < 0 || val > 1) {
+        return -1;
+    }
+    return setthp(val);
+}
+
+int sys_checkthp() { return checkthp(); }

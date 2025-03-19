@@ -24,26 +24,10 @@ static Header hugebase;
 static Header *freep;
 static Header *hugefreep;
 
-void free(void *ap) {
-    Header *bp, *p;
-
-    bp = (Header *)ap - 1;
-    for (p = freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
-        if (p >= p->s.ptr && (bp > p || bp < p->s.ptr)) break;
-    if (bp + bp->s.size == p->s.ptr) {
-        bp->s.size += p->s.ptr->s.size;
-        bp->s.ptr = p->s.ptr->s.ptr;
-    } else
-        bp->s.ptr = p->s.ptr;
-    if (p + p->s.size == bp) {
-        p->s.size += bp->s.size;
-        p->s.ptr = bp->s.ptr;
-    } else
-        p->s.ptr = bp;
-    freep = p;
-}
+const uint THP_CUTOFF = 1 * 1024 * 1024;  // 1MB
 
 void hugefree(void *ap) {
+    if (ap < (void *)HUGE_PAGE_START || ap > (void *)HUGE_PAGE_END) return;
     Header *bp, *p;
 
     bp = (Header *)ap - 1;
@@ -60,6 +44,29 @@ void hugefree(void *ap) {
     } else
         p->s.ptr = bp;
     hugefreep = p;
+}
+
+void free(void *ap) {
+    if (ap > (void *)HUGE_PAGE_START) {
+        hugefree(ap);
+        return;
+    }
+    Header *bp, *p;
+
+    bp = (Header *)ap - 1;
+    for (p = freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
+        if (p >= p->s.ptr && (bp > p || bp < p->s.ptr)) break;
+    if (bp + bp->s.size == p->s.ptr) {
+        bp->s.size += p->s.ptr->s.size;
+        bp->s.ptr = p->s.ptr->s.ptr;
+    } else
+        bp->s.ptr = p->s.ptr;
+    if (p + p->s.size == bp) {
+        p->s.size += bp->s.size;
+        p->s.ptr = bp->s.ptr;
+    } else
+        p->s.ptr = bp;
+    freep = p;
 }
 
 static Header *morecore(uint nu) {
@@ -92,25 +99,49 @@ void *malloc(uint nbytes) {
     Header *p, *prevp;
     uint nunits;
 
+    int thp_enable = checkthp();
+
     nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
-    if ((prevp = freep) == 0) {
-        base.s.ptr = freep = prevp = &base;
-        base.s.size = 0;
-    }
-    for (p = prevp->s.ptr;; prevp = p, p = p->s.ptr) {
-        if (p->s.size >= nunits) {
-            if (p->s.size == nunits)
-                prevp->s.ptr = p->s.ptr;
-            else {
-                p->s.size -= nunits;
-                p += p->s.size;
-                p->s.size = nunits;
-            }
-            freep = prevp;
-            return (void *)(p + 1);
+    if (nbytes < THP_CUTOFF || !thp_enable) {
+        if ((prevp = freep) == 0) {
+            base.s.ptr = freep = prevp = &base;
+            base.s.size = 0;
         }
-        if (p == freep)
-            if ((p = morecore(nunits)) == 0) return 0;
+        for (p = prevp->s.ptr;; prevp = p, p = p->s.ptr) {
+            if (p->s.size >= nunits) {
+                if (p->s.size == nunits)
+                    prevp->s.ptr = p->s.ptr;
+                else {
+                    p->s.size -= nunits;
+                    p += p->s.size;
+                    p->s.size = nunits;
+                }
+                freep = prevp;
+                return (void *)(p + 1);
+            }
+            if (p == freep)
+                if ((p = morecore(nunits)) == 0) return 0;
+        }
+    } else {
+        if ((prevp = hugefreep) == 0) {
+            hugebase.s.ptr = hugefreep = prevp = &hugebase;
+            hugebase.s.size = 0;
+        }
+        for (p = prevp->s.ptr;; prevp = p, p = p->s.ptr) {
+            if (p->s.size >= nunits) {
+                if (p->s.size == nunits)
+                    prevp->s.ptr = p->s.ptr;
+                else {
+                    p->s.size -= nunits;
+                    p += p->s.size;
+                    p->s.size = nunits;
+                }
+                hugefreep = prevp;
+                return (void *)(p + 1);
+            }
+            if (p == hugefreep)
+                if ((p = morehugecore(nunits)) == 0) return 0;
+        }
     }
 }
 

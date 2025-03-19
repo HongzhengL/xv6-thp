@@ -90,6 +90,8 @@ extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_printhugepde(void);
 extern int sys_procpgdirinfo(void);
+extern int sys_setthp(void);
+extern int sys_checkthp(void);
 
 static int (*syscalls[])(void) = {
     [SYS_fork] sys_fork,
@@ -115,6 +117,8 @@ static int (*syscalls[])(void) = {
     [SYS_close] sys_close,
     [SYS_printhugepde] sys_printhugepde,
     [SYS_procpgdirinfo] sys_procpgdirinfo,
+    [SYS_setthp] sys_setthp,
+    [SYS_checkthp] sys_checkthp,
 };
 
 void syscall(void) {
