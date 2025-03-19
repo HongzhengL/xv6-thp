@@ -38,6 +38,20 @@ static pte_t *walkpgdir(pde_t *pgdir, const void *va, int alloc) {
   pte_t *pgtab;
 
   pde = &pgdir[PDX(va)];
+
+  // huge page, return pde
+  if ((P2V(HUGE_PAGE_START) <= va && va <= P2V(HUGE_PAGE_END)) ||
+      ((void *)HUGE_VA_OFFSET <= va && va < (void *)KERNBASE)) {
+    if (*pde & PTE_P) {
+      if (!(*pde & PTE_PS)) panic("walkpgdir - PTE_PS not set");
+    } else {
+      if (!alloc) return 0;
+      *pde = 0;
+    }
+    return pde;
+  }
+
+  // base page, return pte
   if (*pde & PTE_P) {
     pgtab = (pte_t *)P2V(PTE_ADDR(*pde));
   } else {
@@ -58,6 +72,7 @@ static pte_t *walkpgdir(pde_t *pgdir, const void *va, int alloc) {
 static int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm) {
   char *a, *last;
   pte_t *pte;
+  pte_t *pde;
 
   if ((perm & PTE_PS) == 0) {  // base page
     a = (char *)PGROUNDDOWN((uint)va);
@@ -70,7 +85,17 @@ static int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm) {
       a += PGSIZE;
       pa += PGSIZE;
     }
-  } else if ((perm & PTE_PS) == PTE_PS) {  // huge page
+  } else if (perm & PTE_PS) {  // huge page
+    a = (char *)HUGEPGROUNDDOWN((uint)va);
+    last = (char *)HUGEPGROUNDDOWN(((uint)va) + size - 1);
+    while (1) {
+      if ((pde = walkpgdir(pgdir, a, 1)) == 0) return -1;
+      if (*pde & PTE_P) panic("huge page remap");
+      *pde = pa | perm | PTE_P;
+      if (a == last) break;
+      a += HUGE_PAGE_SIZE;
+      pa += HUGE_PAGE_SIZE;
+    }
   }
   return 0;
 }
@@ -107,7 +132,9 @@ static struct kmap {
     {(void *)KERNBASE, 0, EXTMEM, PTE_W},             // I/O space
     {(void *)KERNLINK, V2P(KERNLINK), V2P(data), 0},  // kern text+rodata
     {(void *)data, V2P(data), PHYSTOP, PTE_W},        // kern data+memory
-    {(void *)DEVSPACE, DEVSPACE, 0, PTE_W},           // more devices
+    {(void *)P2V(HUGE_PAGE_START), HUGE_PAGE_START, HUGE_PAGE_END,
+     PTE_W | PTE_PS},                        // kernel mappings for huge pages
+    {(void *)DEVSPACE, DEVSPACE, 0, PTE_W},  // more devices
 };
 
 // Set up kernel part of a page table.
@@ -194,44 +221,52 @@ int loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz) {
 
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
-int allocuvm(pde_t *pgdir, uint oldsz, uint newsz, int baseHugeFlag) {
+int allocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
   char *mem;
   uint a;
 
   if (newsz >= KERNBASE) return 0;
   if (newsz < oldsz) return oldsz;
 
-  if (baseHugeFlag == VMALLOC_SIZE_BASE) {
+  if ((PHYSTOP < oldsz && oldsz < HUGE_VA_OFFSET) ||
+      (PHYSTOP < newsz && newsz < HUGE_VA_OFFSET))
+    return 0;
+
+  if (oldsz < PHYSTOP) {  // alloc bsae pages first
+    uint baseNewSz = (newsz <= PHYSTOP ? newsz : PHYSTOP);
     a = PGROUNDUP(oldsz);
-    for (; a < newsz; a += PGSIZE) {
+    for (; a < baseNewSz; a += PGSIZE) {
       mem = kalloc();
       if (mem == 0) {
         cprintf("allocuvm out of memory\n");
-        deallocuvm(pgdir, newsz, oldsz, baseHugeFlag);
+        deallocuvm(pgdir, baseNewSz, oldsz);
         return 0;
       }
       memset(mem, 0, PGSIZE);
       if (mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
         cprintf("allocuvm out of memory (2)\n");
-        deallocuvm(pgdir, newsz, oldsz, baseHugeFlag);
+        deallocuvm(pgdir, baseNewSz, oldsz);
         kfree(mem);
         return 0;
       }
     }
-  } else if (baseHugeFlag == VMALLOC_SIZE_HUGE) {
-    a = HUGEPGROUNDUP(oldsz);
+  }
+
+  if (newsz > HUGE_VA_OFFSET) {  // Then, alloc huge pages
+    uint hugeOldSz = (oldsz >= HUGE_VA_OFFSET ? oldsz : HUGE_VA_OFFSET);
+    a = HUGEPGROUNDUP(hugeOldSz);
     for (; a < newsz; a += HUGE_PAGE_SIZE) {
       mem = khugealloc();
       if (mem == 0) {
         cprintf("allocuvm-huge out of memory\n");
-        deallocuvm(pgdir, newsz, oldsz, baseHugeFlag);
+        deallocuvm(pgdir, newsz, hugeOldSz);
         return 0;
       }
       memset(mem, 0, HUGE_PAGE_SIZE);
       if (mappages(pgdir, (char *)a, HUGE_PAGE_SIZE, V2P(mem),
                    PTE_W | PTE_U | PTE_PS) < 0) {
         cprintf("allocuvm-huge out of memory (2)\n");
-        deallocuvm(pgdir, newsz, oldsz, baseHugeFlag);
+        deallocuvm(pgdir, newsz, hugeOldSz);
         khugefree(mem);
         return 0;
       }
@@ -244,23 +279,45 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz, int baseHugeFlag) {
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
 // process size.  Returns the new process size.
-int deallocuvm(pde_t *pgdir, uint oldsz, uint newsz, int baseHugeFlag) {
+int deallocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
   pte_t *pte;
   uint a, pa;
 
   if (newsz >= oldsz) return oldsz;
 
-  a = PGROUNDUP(newsz);
-  for (; a < oldsz; a += PGSIZE) {
-    pte = walkpgdir(pgdir, (char *)a, 0);
-    if (!pte)
-      a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
-    else if ((*pte & PTE_P) != 0) {
-      pa = PTE_ADDR(*pte);
-      if (pa == 0) panic("kfree");
-      char *v = P2V(pa);
-      kfree(v);
-      *pte = 0;
+  if ((PHYSTOP < oldsz && oldsz < HUGE_VA_OFFSET) ||
+      (PHYSTOP < newsz && newsz < HUGE_VA_OFFSET))
+    return 0;
+
+  if (oldsz > HUGE_VA_OFFSET) {  // need to free huge pages first
+    a = HUGEPGROUNDUP((newsz >= HUGE_VA_OFFSET ? newsz : HUGE_VA_OFFSET));
+    for (; a < oldsz; a += HUGE_PAGE_SIZE) {
+      pte = walkpgdir(pgdir, (char *)a, 0);
+      if (!pte)
+        continue;
+      else if ((*pte & PTE_P) != 0) {
+        pa = HUGE_FRAME_ADDR(*pte);
+        if (pa == 0) panic("khugefree");
+        char *v = P2V(pa);
+        khugefree(v);
+        *pte = 0;
+      }
+    }
+  }
+
+  if (newsz < PHYSTOP) {
+    a = PGROUNDUP(newsz);
+    for (; a < (oldsz <= PHYSTOP ? oldsz : PHYSTOP); a += PGSIZE) {
+      pte = walkpgdir(pgdir, (char *)a, 0);
+      if (!pte)
+        a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
+      else if ((*pte & PTE_P) != 0) {
+        pa = PTE_ADDR(*pte);
+        if (pa == 0) panic("kfree");
+        char *v = P2V(pa);
+        kfree(v);
+        *pte = 0;
+      }
     }
   }
   return newsz;
@@ -274,9 +331,12 @@ void freevm(pde_t *pgdir) {
   if (pgdir == 0) panic("freevm: no pgdir");
   deallocuvm(pgdir, KERNBASE, 0);
   for (i = 0; i < NPDENTRIES; i++) {
-    if (pgdir[i] & PTE_P) {
+    if ((pgdir[i] & PTE_P) && !(pgdir[i] & PTE_PS)) {
       char *v = P2V(PTE_ADDR(pgdir[i]));
       kfree(v);
+    } else if ((pgdir[i] & PTE_P) && (pgdir[i] & PTE_PS)) {
+      char *v = P2V(HUGE_FRAME_ADDR(pgdir[i]));
+      khugefree(v);
     }
   }
   kfree((char *)pgdir);
@@ -294,9 +354,10 @@ void clearpteu(pde_t *pgdir, char *uva) {
 
 // Given a parent process's page table, create a copy
 // of it for a child.
-pde_t *copyuvm(pde_t *pgdir, uint sz) {
+pde_t *copyuvm(pde_t *pgdir, uint sz, uint hugesz) {
   pde_t *d;
   pte_t *pte;
+  pte_t *pde;
   uint pa, i, flags;
   char *mem;
 
@@ -311,6 +372,20 @@ pde_t *copyuvm(pde_t *pgdir, uint sz) {
     memmove(mem, (char *)P2V(pa), PGSIZE);
     if (mappages(d, (void *)i, PGSIZE, V2P(mem), flags) < 0) {
       kfree(mem);
+      goto bad;
+    }
+  }
+
+  for (i = HUGE_VA_OFFSET; i < hugesz; i += HUGE_PAGE_SIZE) {
+    if ((pde = walkpgdir(pgdir, (void *)i, 0)) == 0)
+      panic("copyuvm: huge page pde should exist");
+    if (!(*pde & PTE_P)) panic("copyuvm: huge page not present");
+    pa = HUGE_FRAME_ADDR(*pde);
+    flags = PTE_FLAGS(*pde) | PTE_PS;
+    if ((mem = khugealloc()) == 0) goto bad;
+    memmove(mem, (char *)P2V(pa), HUGE_PAGE_SIZE);
+    if (mappages(d, (void *)i, HUGE_PAGE_SIZE, V2P(mem), flags) < 0) {
+      khugefree(mem);
       goto bad;
     }
   }
@@ -329,10 +404,11 @@ char *uva2ka(pde_t *pgdir, char *uva) {
   pte = walkpgdir(pgdir, uva, 0);
   if ((*pte & PTE_P) == 0) return 0;
   if ((*pte & PTE_U) == 0) return 0;
+  if (*pte & PTE_PS) return (char *)P2V(HUGE_FRAME_ADDR(*pte));
   return (char *)P2V(PTE_ADDR(*pte));
 }
 
-// Copy len bytes from p to user address va in page table pgdir.
+// Copy len bytes from p (kernel space) to user address va in page table pgdir.
 // Most useful when pgdir is not the current page table.
 // uva2ka ensures this only works for PTE_U pages.
 int copyout(pde_t *pgdir, uint va, void *p, uint len) {
@@ -345,11 +421,14 @@ int copyout(pde_t *pgdir, uint va, void *p, uint len) {
     pa0 = uva2ka(pgdir, (char *)va0);
     if (pa0 == 0) return -1;
     n = PGSIZE - (va - va0);
+    if (*(walkpgdir(pgdir, (char *)va0, 0))&PTE_PS)
+      n = HUGE_PAGE_SIZE - (va - va0);
     if (n > len) n = len;
     memmove(pa0 + (va - va0), buf, n);
     len -= n;
     buf += n;
     va = va0 + PGSIZE;
+    if (*(walkpgdir(pgdir, (char *)va0, 0))&PTE_PS) va = va0 + HUGE_PAGE_SIZE;
   }
   return 0;
 }

@@ -2,6 +2,7 @@
 #include "stat.h"
 #include "user.h"
 #include "param.h"
+#include "memlayout.h"
 
 // Memory allocator by Kernighan and Ritchie,
 // The C programming Language, 2nd ed.  Section 8.7.
@@ -19,7 +20,9 @@ union header {
 typedef union header Header;
 
 static Header base;
+static Header hugebase;
 static Header *freep;
+static Header *hugefreep;
 
 void free(void *ap) {
   Header *bp, *p;
@@ -40,17 +43,49 @@ void free(void *ap) {
   freep = p;
 }
 
+void hugefree(void *ap) {
+  Header *bp, *p;
+
+  bp = (Header *)ap - 1;
+  for (p = hugefreep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
+    if (p >= p->s.ptr && (bp > p || bp < p->s.ptr)) break;
+  if (bp + bp->s.size == p->s.ptr) {
+    bp->s.size += p->s.ptr->s.size;
+    bp->s.ptr = p->s.ptr->s.ptr;
+  } else
+    bp->s.ptr = p->s.ptr;
+  if (p + p->s.size == bp) {
+    p->s.size += bp->s.size;
+    p->s.ptr = bp->s.ptr;
+  } else
+    p->s.ptr = bp;
+  hugefreep = p;
+}
+
 static Header *morecore(uint nu) {
   char *p;
   Header *hp;
 
   if (nu < 4096) nu = 4096;
-  p = sbrk(nu * sizeof(Header));
+  p = sbrk(nu * sizeof(Header), VMALLOC_SIZE_BASE);
   if (p == (char *)-1) return 0;
   hp = (Header *)p;
   hp->s.size = nu;
   free((void *)(hp + 1));
   return freep;
+}
+
+static Header *morehugecore(uint nu) {
+  char *p;
+  Header *hp;
+
+  if (nu < HUGE_PAGE_SIZE) nu = HUGE_PAGE_SIZE;
+  p = sbrk(nu * sizeof(Header), VMALLOC_SIZE_HUGE);
+  if (p == (char *)-1) return 0;
+  hp = (Header *)p;
+  hp->s.size = nu;
+  hugefree((void *)(hp + 1));
+  return hugefreep;
 }
 
 void *malloc(uint nbytes) {
@@ -76,5 +111,33 @@ void *malloc(uint nbytes) {
     }
     if (p == freep)
       if ((p = morecore(nunits)) == 0) return 0;
+  }
+}
+
+void *vmalloc(uint nbytes, int baseHugeFlag) {
+  Header *p, *prevp;
+  uint nunits;
+
+  if (baseHugeFlag == VMALLOC_SIZE_BASE) return malloc(nbytes);
+
+  nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
+  if ((prevp = hugefreep) == 0) {
+    hugebase.s.ptr = hugefreep = prevp = &hugebase;
+    hugebase.s.size = 0;
+  }
+  for (p = prevp->s.ptr;; prevp = p, p = p->s.ptr) {
+    if (p->s.size >= nunits) {
+      if (p->s.size == nunits)
+        prevp->s.ptr = p->s.ptr;
+      else {
+        p->s.size -= nunits;
+        p += p->s.size;
+        p->s.size = nunits;
+      }
+      hugefreep = prevp;
+      return (void *)(p + 1);
+    }
+    if (p == hugefreep)
+      if ((p = morehugecore(nunits)) == 0) return 0;
   }
 }
