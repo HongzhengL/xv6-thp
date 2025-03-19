@@ -123,7 +123,7 @@ struct segdesc {
 // Address in page table or page directory entry
 #define PTE_ADDR(pte) ((uint)(pte) & ~0xFFF)
 #define PTE_FLAGS(pte) ((uint)(pte) & 0xFFF)
-#define HUGE_FRAME_ADDR(pde) ((uint)(pde) & 0xFFC0)
+#define HUGE_FRAME_ADDR(pde) ((uint)((pde) & 0xFFC00000))
 
 #ifndef __ASSEMBLER__
 typedef uint pte_t;

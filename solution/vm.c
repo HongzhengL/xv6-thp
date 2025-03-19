@@ -297,7 +297,7 @@ int deallocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
         continue;
       else if ((*pte & PTE_P) != 0) {
         pa = HUGE_FRAME_ADDR(*pte);
-        if (pa == 0) panic("khugefree");
+        if (pa == 0) panic("vm.c khugefree");
         char *v = P2V(pa);
         khugefree(v);
         *pte = 0;
