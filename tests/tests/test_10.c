@@ -52,4 +52,5 @@ int main() {
       }
       printf(1, "XV6_TEST_OUTPUT Parent program base pages:%d huge pages:%d\n", page_cnt[0] - original_page_cnt[0], page_cnt[1] - original_page_cnt[1]);
   }
+  exit();
 }
