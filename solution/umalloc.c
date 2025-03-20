@@ -26,7 +26,7 @@ static Header *hugefreep;
 
 const uint THP_CUTOFF = 1 * 1024 * 1024;  // 1MB
 
-void hugefree(void *ap) {
+void vfree(void *ap) {
     if (ap < (void *)HUGE_PAGE_START || ap > (void *)HUGE_PAGE_END) return;
     Header *bp, *p;
 
@@ -48,7 +48,7 @@ void hugefree(void *ap) {
 
 void free(void *ap) {
     if (ap > (void *)HUGE_PAGE_START) {
-        hugefree(ap);
+        vfree(ap);
         return;
     }
     Header *bp, *p;
@@ -91,7 +91,7 @@ static Header *morehugecore(uint nu) {
     if (p == (char *)-1) return 0;
     hp = (Header *)p;
     hp->s.size = nu;
-    hugefree((void *)(hp + 1));
+    vfree((void *)(hp + 1));
     return hugefreep;
 }
 
