@@ -90,7 +90,7 @@ static int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm) {
         last = (char *)HUGEPGROUNDDOWN(((uint)va) + size - 1);
         while (1) {
             if ((pde = walkpgdir(pgdir, a, 1)) == 0) return -1;
-            if (*pde & PTE_P) panic("huge page remap");
+            if (*pde & PTE_P) panic("hugepage - remap");
             *pde = pa | perm | PTE_P;
             if (a == last) break;
             a += HUGE_PAGE_SIZE;
@@ -259,14 +259,14 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
         for (; a < newsz; a += HUGE_PAGE_SIZE) {
             mem = khugealloc();
             if (mem == 0) {
-                cprintf("allocuvm-huge out of memory\n");
+                cprintf("hugealloc - allocuvm out of memory\n");
                 deallocuvm(pgdir, newsz, hugeOldSz);
                 return 0;
             }
             memset(mem, 0, HUGE_PAGE_SIZE);
             if (mappages(pgdir, (char *)a, HUGE_PAGE_SIZE, V2P(mem),
                          PTE_W | PTE_U | PTE_PS) < 0) {
-                cprintf("allocuvm-huge out of memory (2)\n");
+                cprintf("hugealloc - allocuvm out of memory (2)\n");
                 deallocuvm(pgdir, newsz, hugeOldSz);
                 khugefree(mem);
                 return 0;

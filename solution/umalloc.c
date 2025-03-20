@@ -27,6 +27,12 @@ static Header *hugefreep;
 const uint THP_CUTOFF = 1 * 1024 * 1024;  // 1MB
 
 void vfree(void *ap) {
+    if (ap > (void *)KERNBASE) {
+        const char *msg =
+            "Error - trying to free a kernel pointer in userspace\n";
+        printf(2, "%s", msg);
+        exit();
+    }
     if (ap < (void *)HUGE_PAGE_START || ap > (void *)HUGE_PAGE_END) return;
     Header *bp, *p;
 
@@ -47,6 +53,12 @@ void vfree(void *ap) {
 }
 
 void free(void *ap) {
+    if (ap > (void *)KERNBASE) {
+        const char *msg =
+            "Error - trying to free a kernel pointer in userspace\n";
+        printf(2, "%s", msg);
+        exit();
+    }
     if (ap > (void *)HUGE_PAGE_START) {
         vfree(ap);
         return;
@@ -149,6 +161,13 @@ void *vmalloc(uint nbytes, int baseHugeFlag) {
     Header *p, *prevp;
     uint nunits;
 
+    if (baseHugeFlag != VMALLOC_SIZE_BASE &&
+        baseHugeFlag != VMALLOC_SIZE_HUGE) {
+        const char *msg =
+            "Please pass VMALLOC_SIZE_BASE or VMALLOC_SIZE_HUGE as flag.\n";
+        printf(2, "%s", msg);
+        exit();
+    }
     if (baseHugeFlag == VMALLOC_SIZE_BASE) return malloc(nbytes);
 
     nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
