@@ -257,6 +257,10 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
         uint hugeOldSz = (oldsz >= HUGE_VA_OFFSET ? oldsz : HUGE_VA_OFFSET);
         a = HUGEPGROUNDUP(hugeOldSz);
         for (; a < newsz; a += HUGE_PAGE_SIZE) {
+            if (newsz + HUGE_PAGE_SIZE > HUGE_PAGE_END) {
+                cprintf("hugealloc - allocuvm out of memory\n");
+                break;
+            }
             mem = khugealloc();
             if (mem == 0) {
                 cprintf("hugealloc - allocuvm out of memory\n");
