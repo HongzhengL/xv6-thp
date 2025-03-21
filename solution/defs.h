@@ -71,6 +71,7 @@ void khugefree(char*);
 void kinit1(void*, void*);
 void kinit2(void*, void*);
 void khugeinit(void*, void*);
+int get_huge_page_count(void);
 
 // kbd.c
 void kbdintr(void);

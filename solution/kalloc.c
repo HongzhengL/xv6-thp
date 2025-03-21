@@ -125,3 +125,17 @@ char *khugealloc(void) {
     if (khugemem.use_lock) release(&khugemem.lock);
     return (char *)r;
 }
+
+int get_huge_page_count(void) {
+    struct run *r;
+    int count = 0;
+    if (khugemem.use_lock) acquire(&khugemem.lock);
+    r = khugemem.freelist;
+    while (r) {
+        count++;
+        r = r->next;
+    }
+    if (khugemem.use_lock) release(&khugemem.lock);
+    cprintf("XV6_TEST_INFO: Huge page count = %d\n", count);
+    return count;
+}

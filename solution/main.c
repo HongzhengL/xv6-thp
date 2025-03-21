@@ -33,6 +33,7 @@ int main(void) {
     kinit2(P2V(4 * 1024 * 1024),
            P2V(PHYSTOP));  // must come after startothers()
     khugeinit(P2V(HUGE_PAGE_START), P2V(HUGE_PAGE_END));
+    get_huge_page_count();
     userinit();  // first user process
     mpmain();    // finish this processor's setup
 }

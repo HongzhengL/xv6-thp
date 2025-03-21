@@ -228,10 +228,6 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
     if (newsz >= KERNBASE) return 0;
     if (newsz < oldsz) return oldsz;
 
-    if ((PHYSTOP < oldsz && oldsz < HUGE_VA_OFFSET) ||
-        (PHYSTOP < newsz && newsz < HUGE_VA_OFFSET))
-        return 0;
-
     if (oldsz < PHYSTOP) {  // alloc bsae pages first
         uint baseNewSz = (newsz <= PHYSTOP ? newsz : PHYSTOP);
         a = PGROUNDUP(oldsz);
@@ -258,6 +254,8 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
         a = HUGEPGROUNDUP(hugeOldSz);
         for (; a < newsz; a += HUGE_PAGE_SIZE) {
             mem = khugealloc();
+            // cprintf("address is: %p\n", V2P(mem));
+            cprintf("huge page is: %p\n", a);
             if (mem == 0) {
                 cprintf("hugealloc - allocuvm out of memory\n");
                 deallocuvm(pgdir, newsz, hugeOldSz);
