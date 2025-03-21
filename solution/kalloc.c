@@ -47,6 +47,17 @@ void khugeinit(void *vstart, void *vend) {
 }
 
 void freerange(void *vstart, void *vend) {
+    /*if (kmem.use_lock) acquire(&kmem.lock);*/
+    /*int i = 1;*/
+    /*struct run *r;*/
+    /*r = kmem.freelist;*/
+    /*while (r) {*/
+    /*    cprintf("%dth addr:%p\n", i, r);*/
+    /*    r = r->next;*/
+    /*    i++;*/
+    /*}*/
+    /*if (kmem.use_lock) release(&kmem.lock);*/
+
     char *p;
     p = (char *)PGROUNDUP((uint)vstart);
     for (; p + PGSIZE <= (char *)vend; p += PGSIZE) kfree(p);
@@ -87,7 +98,7 @@ void khugefree(char *v) {
     struct run *r;
 
     if ((uint)(V2P(v) - HUGE_PAGE_START) % HUGE_PAGE_SIZE || v < end ||
-        V2P(v) < HUGE_PAGE_START || V2P(v) > HUGE_PAGE_END)
+        V2P(v) < HUGE_PAGE_START || V2P(v) >= HUGE_PAGE_END)
         panic("khugefree");
 
     // Fill with junk to catch dangling refs.
@@ -105,6 +116,17 @@ void khugefree(char *v) {
 // Returns 0 if the memory cannot be allocated.
 char *kalloc(void) {
     struct run *r;
+
+    /*if (kmem.use_lock) acquire(&kmem.lock);*/
+    /*int i = 1;*/
+    /*struct run *r;*/
+    /*r = kmem.freelist;*/
+    /*while (r) {*/
+    /*    cprintf("%dth addr:%p\n", i, r);*/
+    /*    r = r->next;*/
+    /*    i++;*/
+    /*}*/
+    /*if (kmem.use_lock) release(&kmem.lock);*/
 
     if (kmem.use_lock) acquire(&kmem.lock);
     r = kmem.freelist;

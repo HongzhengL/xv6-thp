@@ -30,7 +30,7 @@ int sys_sbrk(void) {
     int n;
     int baseHugeFlag = 0;
 
-    if (argint(0, &n) < 0 || argint(1, &baseHugeFlag)) return -1;
+    if (argint(0, &n) < 0 || argint(1, &baseHugeFlag) < 0) return -1;
     addr = myproc()->sz;
     if (baseHugeFlag == 1) addr = myproc()->hugesz;
     if (growproc(n, baseHugeFlag) < 0) return -1;

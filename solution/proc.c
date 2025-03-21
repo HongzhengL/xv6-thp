@@ -146,6 +146,9 @@ int growproc(int n, int baseHugeFlag) {
     sz = curproc->sz;
     if (baseHugeFlag == 1) sz = curproc->hugesz;
     if (n > 0) {
+        /*if (baseHugeFlag == 1) {*/
+        /*    cprintf("zs == %d, sz+n == %d\n", sz, sz + n);*/
+        /*}*/
         if ((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0) return -1;
     } else if (n < 0) {
         if ((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0) return -1;

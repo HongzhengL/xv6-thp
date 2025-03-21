@@ -1,10 +1,17 @@
 #include "types.h"
 #include "user.h"
 
+/*freelist = 0xbdc0*/
+/*free(0xa000)*/
+/*0x9fff <- 0xa000 <- 0xa004*/
+/*109: 0xbdc <- 0xa000 <- 0xa004*/
+/*110: freelist = 0xa000*/
+
 int main(int argc, char *argv[]) {
     // setthp(1);
 
-    int size = 1024 * 1024 * (992 - 480 + 3);
+    int size = 1024 * 1024 * (482 - 480);
+    /*int size = 1024 * 8;*/
 
     // char *p = (char *)malloc(size);
     char *p = (char *)vmalloc((unsigned int)size, VMALLOC_SIZE_HUGE);

@@ -252,16 +252,19 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
     if (newsz > HUGE_VA_OFFSET) {  // Then, alloc huge pages
         uint hugeOldSz = (oldsz >= HUGE_VA_OFFSET ? oldsz : HUGE_VA_OFFSET);
         a = HUGEPGROUNDUP(hugeOldSz);
+        /*int cnt = 0;*/
         for (; a < newsz; a += HUGE_PAGE_SIZE) {
             mem = khugealloc();
             // cprintf("address is: %p\n", V2P(mem));
-            cprintf("huge page is: %p\n", a);
+            /*cprintf("huge page is: %p\n", a);*/
             if (mem == 0) {
                 cprintf("hugealloc - allocuvm out of memory\n");
                 deallocuvm(pgdir, newsz, hugeOldSz);
                 return 0;
             }
             memset(mem, 0, HUGE_PAGE_SIZE);
+            /*cnt++;*/
+            /*cprintf("cnt == %d\n", cnt);*/
             if (mappages(pgdir, (char *)a, HUGE_PAGE_SIZE, V2P(mem),
                          PTE_W | PTE_U | PTE_PS) < 0) {
                 cprintf("hugealloc - allocuvm out of memory (2)\n");
@@ -333,10 +336,11 @@ void freevm(pde_t *pgdir) {
         if ((pgdir[i] & PTE_P) && !(pgdir[i] & PTE_PS)) {
             char *v = P2V(PTE_ADDR(pgdir[i]));
             kfree(v);
-        } else if ((pgdir[i] & PTE_P) && (pgdir[i] & PTE_PS)) {
-            char *v = P2V(HUGE_FRAME_ADDR(pgdir[i]));
-            khugefree(v);
         }
+        /*} else if ((pgdir[i] & PTE_P) && (pgdir[i] & PTE_PS)) {*/
+        /*    char *v = P2V(HUGE_FRAME_ADDR(pgdir[i]));*/
+        /*    khugefree(v);*/
+        /*}*/
     }
     kfree((char *)pgdir);
 }
