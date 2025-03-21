@@ -228,10 +228,6 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
     if (newsz >= KERNBASE) return 0;
     if (newsz < oldsz) return oldsz;
 
-    if ((PHYSTOP < oldsz && oldsz < HUGE_VA_OFFSET) ||
-        (PHYSTOP < newsz && newsz < HUGE_VA_OFFSET))
-        return 0;
-
     if (oldsz < PHYSTOP) {  // alloc bsae pages first
         uint baseNewSz = (newsz <= PHYSTOP ? newsz : PHYSTOP);
         a = PGROUNDUP(oldsz);
