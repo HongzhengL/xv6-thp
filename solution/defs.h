@@ -123,6 +123,8 @@ void userinit(void);
 int wait(void);
 void wakeup(void*);
 void yield(void);
+int setthp(int);
+int checkthp(void);
 
 // swtch.S
 void swtch(struct context**, struct context*);
