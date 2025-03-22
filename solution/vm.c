@@ -337,10 +337,6 @@ void freevm(pde_t *pgdir) {
             char *v = P2V(PTE_ADDR(pgdir[i]));
             kfree(v);
         }
-        /*} else if ((pgdir[i] & PTE_P) && (pgdir[i] & PTE_PS)) {*/
-        /*    char *v = P2V(HUGE_FRAME_ADDR(pgdir[i]));*/
-        /*    khugefree(v);*/
-        /*}*/
     }
     kfree((char *)pgdir);
 }
