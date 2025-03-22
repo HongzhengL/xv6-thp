@@ -253,10 +253,6 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
         uint hugeOldSz = (oldsz >= HUGE_VA_OFFSET ? oldsz : HUGE_VA_OFFSET);
         a = HUGEPGROUNDUP(hugeOldSz);
         for (; a < newsz; a += HUGE_PAGE_SIZE) {
-            if (newsz + HUGE_PAGE_SIZE > HUGE_PAGE_END) {
-                cprintf("hugealloc - allocuvm out of memory\n");
-                break;
-            }
             mem = khugealloc();
             if (mem == 0) {
                 cprintf("hugealloc - allocuvm out of memory\n");
@@ -285,10 +281,6 @@ int deallocuvm(pde_t *pgdir, uint oldsz, uint newsz) {
     uint a, pa;
 
     if (newsz >= oldsz) return oldsz;
-
-    if ((PHYSTOP < oldsz && oldsz < HUGE_VA_OFFSET) ||
-        (PHYSTOP < newsz && newsz < HUGE_VA_OFFSET))
-        return 0;
 
     if (oldsz > HUGE_VA_OFFSET) {  // need to free huge pages first
         a = HUGEPGROUNDUP((newsz >= HUGE_VA_OFFSET ? newsz : HUGE_VA_OFFSET));
@@ -335,9 +327,6 @@ void freevm(pde_t *pgdir) {
         if ((pgdir[i] & PTE_P) && !(pgdir[i] & PTE_PS)) {
             char *v = P2V(PTE_ADDR(pgdir[i]));
             kfree(v);
-        } else if ((pgdir[i] & PTE_P) && (pgdir[i] & PTE_PS)) {
-            char *v = P2V(HUGE_FRAME_ADDR(pgdir[i]));
-            khugefree(v);
         }
     }
     kfree((char *)pgdir);

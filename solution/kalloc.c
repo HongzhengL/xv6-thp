@@ -87,7 +87,7 @@ void khugefree(char *v) {
     struct run *r;
 
     if ((uint)(V2P(v) - HUGE_PAGE_START) % HUGE_PAGE_SIZE || v < end ||
-        V2P(v) < HUGE_PAGE_START || V2P(v) > HUGE_PAGE_END)
+        V2P(v) < HUGE_PAGE_START || V2P(v) >= HUGE_PAGE_END)
         panic("khugefree");
 
     // Fill with junk to catch dangling refs.

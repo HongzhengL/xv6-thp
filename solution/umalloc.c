@@ -98,8 +98,13 @@ static Header *morehugecore(uint nu) {
     char *p;
     Header *hp;
 
-    if (nu < HUGE_PAGE_SIZE) nu = HUGE_PAGE_SIZE / sizeof(Header);
-    p = sbrk(nu * sizeof(Header), VMALLOC_SIZE_HUGE);
+    if (nu * sizeof(Header) < HUGE_PAGE_SIZE) {
+        nu = HUGE_PAGE_SIZE / sizeof(Header);
+        p = sbrk(HUGE_PAGE_SIZE, VMALLOC_SIZE_HUGE);
+    } else {
+        p = sbrk(nu * sizeof(Header), VMALLOC_SIZE_HUGE);
+    }
+
     if (p == (char *)-1) return 0;
     hp = (Header *)p;
     hp->s.size = nu;
