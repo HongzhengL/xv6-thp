@@ -2,6 +2,9 @@ name: Format Code
 
 on: [push]
 
+permissions:
+  contents: write
+
 jobs:
   format:
     runs-on: ubuntu-latest
@@ -10,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Run formatter
         working-directory: ${{ github.workspace }}/solution
@@ -24,12 +27,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -z "$GITHUB_TOKEN" ]; then echo "GITHUB_TOKEN is missing"; else echo "GITHUB_TOKEN is set"; fi
-          echo "$GITHUB_TOKEN"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
           git add .
           git diff --cached --quiet || git commit -m "style: auto-format C/C++ files"
           git push
