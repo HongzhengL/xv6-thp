@@ -21,6 +21,8 @@ jobs:
 
       - name: Commit and push changes
         working-directory: ${{ github.workspace }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global user.name "github-actions[bot]"
@@ -28,5 +30,3 @@ jobs:
           git add .
           git diff --cached --quiet || git commit -m "style: auto-format C/C++ files"
           git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
