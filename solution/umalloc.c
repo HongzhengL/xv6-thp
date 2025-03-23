@@ -134,6 +134,7 @@ void *malloc(uint nbytes) {
                     p->s.size = nunits;
                 }
                 freep = prevp;
+
                 return (void *)(p + 1);
             }
             if (p == freep)
