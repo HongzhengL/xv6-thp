@@ -15,10 +15,8 @@ jobs:
       - name: Run formatter
         working-directory: ${{ github.workspace }}/solution
         run: |
-          extensions=("*.cpp" "*.c" "*.cc" "*.cxx" "*.h" "*.hpp" "*.hh") 
-          for ext in "${extensions[@]}"
-          do
-              find . -type f -name "$ext" -exec clang-format -i {} +
+          for ext in "*.cpp" "*.c" "*.cc" "*.cxx" "*.h" "*.hpp" "*.hh"; do
+            find . -type f -name "$ext" -exec clang-format -i {} +
           done
 
       - name: Commit and push changes
