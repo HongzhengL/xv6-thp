@@ -1,6 +1,6 @@
 name: runtests
 
-on: [push]
+on: [pull_request]
 
 jobs:
   runtest:
