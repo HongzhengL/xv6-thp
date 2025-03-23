@@ -1,0 +1,33 @@
+name: Format Code
+
+on: [push]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    container:
+      image: hongzhengli/cs537-formatter:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run formatter
+        working-directory: ${{ github.workspace }}/solution
+        run: |
+          extensions=("*.cpp" "*.c" "*.cc" "*.cxx" "*.h" "*.hpp" "*.hh") 
+          for ext in "${extensions[@]}"
+          do
+              find . -type f -name "$ext" -exec clang-format -i {} +
+          done
+
+      - name: Commit and push changes
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --quiet || git commit -m "style: auto-format C/C++ files"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
