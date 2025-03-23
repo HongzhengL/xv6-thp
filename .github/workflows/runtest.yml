@@ -1,0 +1,13 @@
+name: runtests
+
+on: [push]
+
+jobs:
+  runtest:
+    runs-on: ubuntu-22-04
+    container: hongzhengli/cs537:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run Test
+        working-directory: ${{github.workspace}}/tests
+        run: ./run-tests.sh -v
