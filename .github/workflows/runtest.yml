@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   runtest:
-    runs-on: ubuntu-22-04
+    runs-on: ubuntu-latest
     container: hongzhengli/cs537:latest
     steps:
       - uses: actions/checkout@v2
